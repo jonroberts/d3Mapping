@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.zipcode path{
+  stroke: #fff;
+  stroke-linejoin: round;
+  opacity: 0.8;
+}
+
+div.mouseover{
+	position: absolute;
+	background: black;
+	background-color: rgba(0,0,0,0.5);
+	border: 1px solid #131313;
+	color: white;
+	padding: 5px 8px;
+	margin-left: 100px;
+	margin-top: 50px;
+	display: none;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/queue.v1.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+<div class="mouseover"></div>
+<script>
+
+var width = 960,
+    height = 700;
+var g; // this is the container that will hold the zips
+
+var projection = d3.geo.conicConformal()
+      .parallels([40 + 40 / 60, 41 + 2 / 60])
+      .scale(70000)
+      .rotate([74, -40 - 45 / 60]);
+
+var path = d3.geo.path().projection(projection);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+queue()
+    .defer(d3.json, "data/nyc-zip-code.json")
+    .await(ready);
+
+function getColor(d){
+	// set this color spectrum to be dependent
+	// on any parameter of your JSON!
+	var ratio=(d["properties"]["Shape_Area"])/1000000.;
+	if(ratio>0){
+		return d3.hsl(255-ratio,0.4,0.5);
+	}else{
+		return "lightgrey";
+	}
+}
+
+function ready(error, map) {
+  g=svg.append("g")
+      .attr("class", "zipcode")
+    .selectAll("path")
+      .data(map.features)
+    .enter().append("path")
+      .attr("d", path)
+	  .style("fill",function(d){return getColor(d);})
+  	  .on("mouseover",mouseover)
+	  .on("mouseout",mouseout);
+}
+
+function mouseover(d){
+	var text="NY"+d.properties["ZIP"];
+	// you can add any more information to the mouseover
+	// here, using data in your JSON
+	$(".mouseover").html(text);
+	$(".mouseover").css("display","inline");
+}
+
+function mouseout(){
+    d3.select("#arcSelection").remove();
+
+	$(".mouseover").text("");
+	$(".mouseover").css("display","none");
+}
+
+// moves the mouseover box whenever the mouse is moved.
+d3.select('html') // Selects the 'html' element
+  .on('mousemove', function()
+    {
+		var locs=d3.mouse(this);	// get the mouse coordinates
+
+		// add some padding
+		locs[0]+=15;
+		locs[1]+=5;
+
+		$("div.mouseover").css("margin-left",locs[0]);
+		$("div.mouseover").css("margin-top",locs[1]);
+    });
+
+
+
+
+</script>

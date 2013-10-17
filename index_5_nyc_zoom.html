@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.zipcode path{
+  stroke: #fff;
+  stroke-linejoin: round;
+  opacity: 0.8;
+}
+
+div.mouseover{
+	position: absolute;
+	background: black;
+	background-color: rgba(0,0,0,0.5);
+	border: 1px solid #131313;
+	color: white;
+	padding: 5px 8px;
+	margin-left: 100px;
+	margin-top: 50px;
+	display: none;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/queue.v1.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+<div class="mouseover"></div>
+<script>
+
+var width = 960,
+    height = 700;
+var g; // this is the container that will hold the zips
+var x,y,k=1; // parameters to hold the zooming and panning state
+var centered;
+var sum_dx=0;
+var sum_dy=0;
+
+var projection = d3.geo.conicConformal()
+      .parallels([40 + 40 / 60, 41 + 2 / 60])
+      .scale(70000)
+      .rotate([74, -40 - 45 / 60]);
+
+var path = d3.geo.path().projection(projection);
+
+queue()
+    .defer(d3.json, "data/nyc-zip-code.json")
+    .await(ready);
+
+function getColor(d){
+	// set this color spectrum to be dependent
+	// on any parameter of your JSON!
+	var ratio=(d["properties"]["Shape_Area"])/1000000.;
+	if(ratio>0){
+		return d3.hsl(255-ratio,0.4,0.5);
+	}else{
+		return "lightgrey";
+	}
+}
+
+// add a d3 behavior handler.
+var drag = d3.behavior.drag()
+        .on("drag",function(d){dragging(d);});
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+	.call(drag);
+
+function ready(error, map) {
+  g=svg.append("g")
+      .attr("class", "zipcode")
+    .attr("id", "zips")
+	  .call(drag);
+
+  g.selectAll("path")
+      .data(map.features)
+    .enter().append("path")
+      .attr("d", path)
+	  .style("fill",function(d){return getColor(d);})
+  	  .on("click", click)				// now we have a click handler
+  	  .on("mouseover",mouseover)
+	  .on("mouseout",mouseout);
+}
+
+function mouseover(d){
+	var text="NY"+d.properties["ZIP"];
+	// you can add any more information to the mouseover
+	// here, using data in your JSON
+	$(".mouseover").html(text);
+	$(".mouseover").css("display","inline");
+}
+
+function mouseout(){
+    d3.select("#arcSelection").remove();
+
+	$(".mouseover").text("");
+	$(".mouseover").css("display","none");
+}
+
+// moves the mouseover box whenever the mouse is moved.
+d3.select('html') // Selects the 'html' element
+  .on('mousemove', function()
+    {
+		var locs=d3.mouse(this);	// get the mouse coordinates
+
+		// add some padding
+		locs[0]+=15;
+		locs[1]+=5;
+
+		$("div.mouseover").css("margin-left",locs[0]);
+		$("div.mouseover").css("margin-top",locs[1]);
+    });
+
+// zooms in on a click. Zooms back out when you click the same location.
+// if you're zoomed in, but not centered on the same zipcode, pan across to that zipcode.
+function click(d) {
+  if (d && centered !== d) {
+    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+    k = 4;
+    centered = d;
+  } else {
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    centered = null;
+  }
+  g.transition()
+      .duration(1000)
+      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")\
+      		scale(" + k + ")translate(" + -x + "," + -y + ")")
+      .style("stroke-width", 1 / k + "px");
+}
+
+
+function dragging(d){
+	// first turn off the mouseover
+	$(".mouseover").css("display","none");
+	// get the deltas that define the relative movement of the cursor
+	dx=d3.event.dx/(1.*k);
+	dy=d3.event.dy/(1.*k);
+	
+	sum_dx+=dx;
+	sum_dy+=dy;
+	
+	x-=dx;
+	y-=dy;
+	
+	// update the transformation.
+	g.attr("transform", "translate(" + width / 2 + "," + height / 2 + ")\
+						scale(" + k + ")\
+						translate(" + -x + "," + -y + ")")
+}
+
+
+
+</script>
