@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.zipcode path{
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+  fill:rgb(107,174,214); 
+}
+
+
+.gm_googleMapOverlay svg{
+  position: absolute;
+  top: -4000px;
+  left: -4000px;
+  width: 8000px;
+  height: 8000px;
+}
+
+
+.gm_googleMapOverlay div{
+  top: 0px;
+  left: 0px;
+}
+
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/queue.v1.min.js"></script>
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+
+<script>
+
+var gm_google_map;
+var gm_google_overlay;
+var gm_google_styled_map;
+
+var gm_svg_layer;
+var gm_path;
+var gm_projection;
+var gm_circle_padding;
+
+
+
+var gm_google_map_style =
+[
+    {
+        "stylers": [
+            { "visibility": "on" }
+    ]
+    },{
+        "elementType": "labels.text.fill",
+        "stylers": [
+            { "color": "#000000" }
+    ]
+    },{
+        "featureType": "administrative",
+        "stylers": [
+            { "visibility": "off" }
+    ]
+    },{
+        "featureType": "poi",
+        "stylers": [
+            { "visibility": "off" }
+    ]
+    },{
+        "featureType": "landscape.man_made",
+        "stylers": [
+            { "visibility": "on" },
+            { "color": "#ffffff" }
+    ]
+    },{
+        "featureType": "landscape.natural",
+        "stylers": [
+            { "color": "#ffffff" },
+            { "visibility": "on" }
+    ]
+    },{
+        "featureType": "road",
+        "stylers": [
+            { "color": "#f6f4f3" }
+    ]
+    },{
+        "featureType": "road",
+        "elementType": "labels",
+        "stylers": [
+            { "color": "#000000" }
+    ]
+    },{
+        "featureType": "road",
+        "elementType": "labels.text.fill",
+        "stylers": [
+            { "color": "#606060" }
+    ]
+    },{
+        "featureType": "road",
+        "elementType": "labels.text",
+        "stylers": [
+            { "weight": 0.4 }
+    ]
+    },{
+        "featureType": "road",
+        "elementType": "labels.icon",
+        "stylers": [
+            { "visibility": "on" },
+            { "color": "#f2eded" }
+    ]
+    },{
+        "featureType": "water",
+        "elementType": "labels",
+        "stylers": [
+            { "visibility": "off" }
+    ]
+    },{
+        "featureType": "water",
+        "stylers": [
+            { "saturation": 100 },
+            { "hue": "#0044ff" },
+            { "lightness": 44 }
+    ]
+    }
+];
+
+
+function gm_bind_google_map()
+{
+  gm_google_map =
+  new google.maps.Map(d3.select("#gm_map_div").node(), //ChangeMe
+  {
+    zoom: 11,
+    center: new google.maps.LatLng(40.6418553515528,-74.07965266950634),
+    disableDefaultUI: true,
+    mapTypeId: google.maps.MapTypeId.ROADMAP
+  });
+
+    gm_google_map.setOptions({styles: gm_google_map_style});
+
+    gm_google_overlay = new google.maps.OverlayView();
+    gm_google_overlay.onAdd = gm_overlay_add;
+    gm_google_overlay.draw = gm_overlay_draw;
+    gm_google_overlay.setMap(gm_google_map);
+}
+
+
+function gm_overlay_add()
+{
+    gm_svg_layer = d3.select(gm_google_overlay.getPanes().overlayMouseTarget)
+        .append("div")
+        .attr("class","gm_googleMapOverlay")
+        .append("svg")
+        .attr("class","gm_googleMapOverlay")
+        .append("g")
+        .attr("class","gm_googleMapOverlay");
+}
+
+function gm_overlay_draw()
+{
+    gm_projection = gm_google_overlay.getProjection();
+
+    var gm_path = d3.geo.path().projection(gm_google_map_d3_projection);
+    var gm_d3_map = gm_svg_layer.selectAll("path")
+        .data(mapData) //ChangeMe
+        .attr("d",gm_path)
+        .enter();
+
+//ChangeMe
+    gm_d3_map.append("path")
+        .attr("d", gm_path)
+        .attr("id", function(d){ return d['id'];  })
+        .attr("fill",function(d){ return getColor(d,map.current)})
+        .attr("stroke","black")
+        .attr("stroke-width","1px")
+        .attr("opacity",0.5)
+        .on("contextmenu", click)
+        .on("mouseover",mouseover)
+        .on("mouseout",mouseout);
+}
+
+function gm_google_map_d3_projection(coordinates)
+{
+    var googleCoordinates = new google.maps.LatLng(coordinates[1], coordinates[0]);
+    var pixelCoordinates = gm_projection.fromLatLngToDivPixel(googleCoordinates);
+    return [pixelCoordinates.x+4000, pixelCoordinates.y+4000];
+}
+
+
+gm_bind_google_map(); //ChangeMe
+</script>
+
+<script>
+
+var width = 960,
+    height = 700;
+
+/*var projection = d3.geo.albersUsa()
+	.scale(82485)
+	.translate([-23700,5980]);*/
+
+var projection = d3.geo.conicConformal()
+      .parallels([40 + 40 / 60, 41 + 2 / 60])
+      .scale(70000)
+      .rotate([74, -40 - 45 / 60]);
+
+var path = d3.geo.path().projection(projection);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+queue()
+    .defer(d3.json, "data/nyc-zip-code.json")
+    .await(ready);
+
+function ready(error, map) {
+  svg.append("g")
+      .attr("class", "zipcode")
+    .selectAll("path")
+      .data(map.features)
+    .enter().append("path")
+      .attr("d", path);
+}
+
+</script>
